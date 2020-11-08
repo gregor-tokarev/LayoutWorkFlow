@@ -3,7 +3,7 @@
 // html
 const ejs = require('gulp-ejs');
 const htmlMin = require('gulp-htmlmin');
-// const htmlWebp = require('gulp-webp-html');
+const htmlWebp = require('gulp-webp-html');
 const replace = require('gulp-replace');
 
 // style
@@ -22,12 +22,8 @@ const webpackStream = require('webpack-stream');
 const webpackConfig = require('./webpack.config.js');
 
 // images
-const imagemin = require('gulp-imagemin');
-const imageminPngquant = require('imagemin-pngquant');
-const imageminZopfli = require('imagemin-zopfli');
-const imageminMozjpeg = require('imagemin-mozjpeg');
-const imageminGiflossy = require('imagemin-giflossy');
-const webp = require('gulp-webp');
+const imagemin = require('gulp-image');
+const webp = require('gulp-cwebp');
 const favicons = require('gulp-favicons');
 
 // fonts
@@ -40,7 +36,6 @@ const plumber = require('gulp-plumber');
 const sourceMap = require('gulp-sourcemaps');
 const rename = require('gulp-rename');
 const yargs = require('yargs');
-const zip = require('gulp-zip');
 const changed = require('gulp-changed');
 
 // Imports finish
@@ -68,7 +63,7 @@ const path = {
         html: `${ sourceFolder }/*.ejs`,
         style: `${ sourceFolder }/style/*.scss`,
         script: `${ sourceFolder }/js/index.js`,
-        img: `${ sourceFolder }/images/*.{jpeg,png,gif,svg,webp}`,
+        img: `${ sourceFolder }/images/**/*.{jpeg,png,gif,svg,webp}`,
         icons: `${ sourceFolder }/images/icons/*.svg`,
         favicons: `${ sourceFolder }/favicon.png`,
         fonts: `${ sourceFolder }/fonts/**/*.*`
@@ -118,13 +113,6 @@ function styleLinter() {
         }));
 }
 
-function gzipProduction() {
-    return src(`./${ projectFolder }/**/*.*`)
-        .pipe(zip('site'))
-        .pipe(rename({ extname: '.zip' }))
-        .pipe(dest('.'));
-}
-
 function scriptLinter() {
     return src(path.src.script)
         .pipe(scriptLint())
@@ -135,25 +123,27 @@ function htmlDevelopment() {
     return src(path.src.html)
         .pipe(plumber())
         .pipe(changed(path.build.html, { extension: '.ejs' }))
-        .pipe(rename({ extname: '.html' }))
-        .pipe(replace(/>.*<\/head>/i, '<%- include("../.wfLayout/linkicon.ejs") %></head>'))
+        .pipe(replace(/>\s<\/head>/i, '><%- include("../.wfLayout/linkicon.ejs") %></head>'))
         .pipe(ejs())
+        .pipe(rename({ extname: '.html' }))
         .pipe(replace(/\.(scss|sass)/g, '.css'))
         .pipe(replace(/(\.\.\/)+/g, ''))
+        .pipe(htmlWebp())
         .pipe(dest(path.build.html))
         .pipe(browserSync.stream());
 }
 
 function htmlProduction() {
     return src(path.src.html)
-        .pipe(replace(/>\s<\/head>/, '<%- include("../.wfLayout/linkicon.ejs") %></head>'))
+        .pipe(replace(/>\s<\/head>/i, '><%- include("../.wfLayout/linkicon.ejs") %></head>'))
         .pipe(ejs())
         .pipe(rename({ extname: '.html' }))
-        .pipe(replace(/(\.\.\/)+/g, ''))
         .pipe(replace(/\.(scss|sass)/g, '.css'))
+        .pipe(replace(/(\.\.\/)+/g, ''))
+        .pipe(htmlWebp())
+        .pipe(htmlMin({ collapseWhitespace: true }))
         .pipe(replace('.css', '.min.css'))
         .pipe(replace('.js', '.min.js'))
-        .pipe(htmlMin({ collapseWhitespace: true }))
         .pipe(dest(path.build.html));
 }
 
@@ -181,7 +171,6 @@ function styleProduction() {
             outputStyle: 'expanded'
         }))
         .pipe(replace(/(\.\.\/)+/g, '../'))
-        .pipe(styleWebp())
         .pipe(styleMediaGroup())
         .pipe(autoprefixer({
             cascade: false,
@@ -189,11 +178,13 @@ function styleProduction() {
         }))
         .pipe(styleMin())
         .pipe(unuseStyle({
-            html: ['dist/*.html']
+            html: ['./dist/*.html'],
+            ignore: [/.show/, /.hidden/, /.visible/, /.finished/, /.close/, /.active/, /.open/]
         }))
         .pipe(rename({
             suffix: '.min'
         }))
+        .pipe(styleWebp({}))
         .pipe(dest(path.build.style));
 }
 
@@ -219,47 +210,29 @@ function scriptProduction() {
 function imagesDevelopment() {
     return src(path.src.img)
         .pipe(changed(path.build.img, { extension: '.{jpg|png|jpeg|gif|svg}' }))
+        .pipe(webp())
+        .pipe(src(path.src.img))
         .pipe(dest(path.build.img))
         .pipe(browserSync.stream());
 }
 
-function imagesProduction() {
+function imagesProduction() { // run not on linux
     return src(path.src.img)
-        .pipe(webp({
-            quality: 70
-        }))
+        .pipe(changed(path.build.img, { extension: '.{jpg|png|jpeg|gif|svg}' }))
+        .pipe(webp())
         .pipe(dest(path.build.img))
         .pipe(src(path.src.img))
-        .pipe(imagemin([
-            imageminGiflossy({
-                optimizationLevel: 3,
-                optimize: 3,
-                lossy: 2
-            }),
-            imageminPngquant({
-                speed: 5,
-                quality: [0.6, 0.8]
-            }),
-            imageminZopfli({
-                more: true
-            }),
-            imageminMozjpeg({
-                progressive: true,
-                quality: 90
-            }),
-            imagemin.svgo({
-                plugins: [
-                    { removeViewBox: false },
-                    { removeUnusedNS: false },
-                    { removeUselessStrokeAndFill: false },
-                    { cleanupIDs: false },
-                    { removeComments: true },
-                    { removeEmptyAttrs: true },
-                    { removeEmptyText: true },
-                    { collapseGroups: true }
-                ]
-            })
-        ]))
+        .pipe(imagemin({
+            pngquant: true,
+            optipng: false,
+            zopflipng: true,
+            jpegRecompress: false,
+            mozjpeg: true,
+            gifsicle: true,
+            svgo: true,
+            concurrent: 10,
+            quiet: true // defaults to false
+        }))
         .pipe(dest(path.build.img))
         .pipe(browserSync.stream());
 }
@@ -332,10 +305,9 @@ if (!production) {
         htmlProduction,
         styleProduction,
         scriptProduction,
-        imagesDevelopment,
+        imagesProduction,
         fontsProduction,
-        faviconsProduction,
-        gzipProduction
+        faviconsProduction
     );
     
     exports.lint = series(styleLinter, scriptLinter);
