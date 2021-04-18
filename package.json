@@ -76,8 +76,6 @@
   },
   "dependencies": {
     "@babel/polyfill": "^7.12.1",
-    "@glidejs/glide": "^3.4.1",
-    "animejs": "^3.2.1",
     "imagesloaded": "^4.1.4"
   }
 }
