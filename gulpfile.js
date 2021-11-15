@@ -142,8 +142,8 @@ function htmlProduction() {
         .pipe(replace(/(\.\.\/)+/g, ''))
         .pipe(htmlWebp())
         .pipe(htmlMin({ collapseWhitespace: true }))
-        .pipe(replace('.css', '.min.css'))
-        .pipe(replace('.js', '.min.js'))
+        .pipe(replace('.css', '.css'))
+        .pipe(replace('.js', '.js'))
         .pipe(dest(path.build.html));
 }
 
