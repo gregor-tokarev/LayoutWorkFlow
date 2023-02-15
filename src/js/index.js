@@ -1,1 +1,1 @@
-import '../../.wfLayout/webpCheck';
+import '../../.gt_layout_template/webpCheck';
