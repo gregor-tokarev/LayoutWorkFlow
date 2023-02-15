@@ -9,7 +9,7 @@ function testWebP(callback) {
         'ASoCAAIALmk0mk0iIiIiIgBoSygABc6WWgAA/veff/0PP8bA//LwYAAA';
 }
 
-export default testWebP(function(support) {
+testWebP(support => {
     if (!!support === true) {
         document.querySelector('body').classList.add('webp');
     } else {

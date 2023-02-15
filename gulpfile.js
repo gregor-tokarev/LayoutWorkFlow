@@ -7,7 +7,7 @@ const htmlWebp = require('gulp-webp-html');
 const replace = require('gulp-replace');
 
 // style
-const scss = require('gulp-sass');
+const scss = require('gulp-sass')(require('sass'));
 const styleMin = require('gulp-csso');
 const autoprefixer = require('gulp-autoprefixer');
 const styleMediaGroup = require('gulp-group-css-media-queries');
@@ -17,13 +17,11 @@ const styleLint = require('gulp-stylelint');
 
 // js
 const scriptLint = require('gulp-eslint');
-const webpack = require('webpack');
-const webpackStream = require('webpack-stream');
-const webpackConfig = require('./webpack.config.js');
+const esbuild = require('gulp-esbuild');
 
 // images
 const imagemin = require('gulp-image');
-const webp = require('gulp-cwebp');
+const webp = require('gulp-webp');
 const favicons = require('gulp-favicons');
 
 // fonts
@@ -45,8 +43,6 @@ const argv = yargs.argv;
 const production = !!argv.production;
 const sourceFolder = 'src';
 const projectFolder = 'dist';
-webpackConfig.mode = production ? 'production' : 'development';
-webpackConfig.devtool = production ? false : 'source-map';
 
 // Path settings
 const path = {
@@ -192,7 +188,10 @@ function scriptDevelopment() {
     return src(path.src.script)
         .pipe(plumber())
         .pipe(sourceMap.init())
-        .pipe(webpackStream(webpackConfig), webpack)
+        .pipe(esbuild({
+            outfile: path.build.script,
+            bundle: true
+        }))
         .pipe(sourceMap.write('.'))
         .pipe(dest(path.build.script))
         .pipe(browserSync.stream());
@@ -200,7 +199,11 @@ function scriptDevelopment() {
 
 function scriptProduction() {
     return src(path.src.script)
-        .pipe(webpackStream(webpackConfig), webpack)
+        .pipe(esbuild({
+            outfile: path.build.script,
+            bundle: true,
+            minify: true
+        }))
         .pipe(rename({
             suffix: '.min'
         }))
@@ -289,13 +292,12 @@ if (!production) {
         htmlDevelopment,
         styleDevelopment, styleLinter,
         scriptDevelopment, scriptLinter,
-        scriptDevelopment,
         imagesDevelopment,
         fontsDevelopment,
         faviconsDevelopment
     );
     const watcher = parallel(watchDevelopment, browserSyncDevelopment, build);
-    
+
     exports.lint = series(styleLinter, scriptLinter);
     exports.build = build;
     exports.watch = watcher;
