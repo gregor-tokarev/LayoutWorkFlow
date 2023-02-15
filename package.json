@@ -7,7 +7,7 @@
     "build": "gulp build --production",
     "dev": "gulp watch",
     "lint": "gulp lint",
-    "setup:dev": "git flow init && npm install && npm run dev",
+    "setup:dev": "npm install && npm run dev",
     "setup:prod": "npm install && npm run build --production"
   },
   "keywords": [],
