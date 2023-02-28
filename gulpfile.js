@@ -56,7 +56,7 @@ const path = {
         fonts: `${ projectFolder }/fonts/`
     },
     src: {
-        html: `${ sourceFolder }/*.ejs`,
+        html: `${ sourceFolder }/**/*.ejs`,
         style: `${ sourceFolder }/style/*.scss`,
         script: `${ sourceFolder }/js/index.js`,
         img: `${ sourceFolder }/images/**/*.{jpeg,png,gif,svg,webp}`,
